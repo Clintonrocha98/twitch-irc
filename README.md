@@ -1,59 +1,210 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# IRC Twitch
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Este projeto é uma POC para entender o funcionamento do protocolo IRC aplicado ao chat da Twitch, com foco parsing de protocolo e organização de código (ETC / parsing em camadas).
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requisitos
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP 8.2+
+- Composer
+- Laravel
+- Conta na Twitch
+- Token OAuth da Twitch com permissão de leitura de chat
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Instalação
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Clone o repositório e instale as dependências:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+composer install
+````
 
-## Laravel Sponsors
+Copie o arquivo de ambiente:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+cp .env.example .env
+```
 
-### Premium Partners
+Gere a key da aplicação Laravel:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+php artisan key:generate
+```
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Configuração do ambiente
 
-## Code of Conduct
+No arquivo `.env`, configure as variáveis relacionadas ao IRC da Twitch:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```env
+TWITCH_IRC_SERVER=irc.chat.twitch.tv
+TWITCH_IRC_PORT=6697
+TWITCH_IRC_TOKEN=oauth:SEU_TOKEN_AQUI
+TWITCH_IRC_NICK=seu_usuario
+TWITCH_IRC_CHANNEL=nome_do_canal
+```
 
-## Security Vulnerabilities
+### Aviso importante sobre a Twitch
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+É obrigatório possuir um **token OAuth válido da Twitch** para conseguir autenticar no servidor IRC.
 
-## License
+O token deve conter, no mínimo, o escopo:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+* `chat:read`
+
+Para gerar o token, foi utilizado o site: [twitchtokengenerator](https://twitchtokengenerator.com)
+
+O token gerado deve ser usado **com o prefixo `oauth:`**.
+
+---
+
+## Start do projeto
+
+Para iniciar a conexão com o chat da Twitch via IRC:
+
+```bash
+php artisan app:irc
+```
+
+Esse comando irá:
+
+* abrir a conexão TLS com o servidor IRC
+* autenticar com a Twitch
+* entrar no canal configurado
+* escutar mensagens do chat
+* processar e exibir as mensagens no terminal
+
+---
+
+## Dúvidas durante o desenvolvimento
+
+### O que é ETL (ou ETC)
+
+No contexto do projeto, o fluxo segue o conceito de:
+
+* **Extract**: leitura da linha bruta vinda do socket IRC
+* **Transform**: conversão da mensagem bruta em uma estrutura compreensível pelo domínio
+* **Consume**: uso da mensagem já interpretada (exibir no terminal, bot, estatísticas, etc.)
+
+No código isso se reflete em:
+
+* `RawParser` → extrai partes do protocolo
+* `MessageTransformer` → converte para entidade de domínio
+* `Message` / `UserInfo` → entidades usadas pela aplicação
+
+---
+
+### RFC do protocolo IRC
+
+O protocolo base utilizado é descrito na RFC oficial: [rfc1459](https://www.rfc-editor.org/rfc/rfc1459)
+
+A Twitch utiliza IRC como base, mas adiciona **extensões próprias** (tags, comandos e eventos adicionais).
+
+---
+
+### Como estruturar o código
+
+A estrutura adotada separa claramente responsabilidades:
+
+* Client IRC → cuida da conexão e do protocolo
+* Parser → extrai dados da string
+* Transformer → aplica regras de domínio
+* Entidades → representam conceitos do chat
+* Command Laravel → apenas orquestra o uso
+
+Essa separação evita acoplamento excessivo e facilita testes e evolução.
+
+---
+
+## O necessário para conectar
+
+Para se conectar ao IRC da Twitch são necessários:
+
+* URL do servidor IRC
+* Porta
+* Token OAuth
+* Nick (usuário da Twitch)
+* Canal
+
+Esses dados não ficam hardcoded no client, mas são fornecidos via configuração (`.env`).
+
+---
+
+Abaixo estão **apenas os dois tópicos refatorados**, mantendo o restante do README inalterado.
+
+---
+
+## Solicitando capabilities da Twitch
+
+Durante o estudo do protocolo IRC aplicado à Twitch, este foi **um dos pontos que gerou dúvida**, pois não faz parte do IRC “puro” definido na RFC 1459.
+As *capabilities* são **extensões específicas da Twitch**, documentadas oficialmente pela plataforma.
+
+Sem solicitar essas capabilities, o servidor IRC da Twitch retorna apenas mensagens básicas, sem metadados importantes.
+
+Para habilitar informações adicionais, o client deve enviar:
+
+```bash
+CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands
+```
+
+Essas capabilities permitem:
+
+* `twitch.tv/membership`
+  Receber eventos de JOIN, PART e lista de usuários no canal.
+
+* `twitch.tv/tags`
+  Receber metadados nas mensagens (badges, cor do usuário, id da mensagem, timestamp, etc.).
+
+* `twitch.tv/commands`
+  Receber comandos específicos da Twitch, como `CLEARCHAT`, `USERNOTICE`, `HOSTTARGET`.
+
+Essas informações **não vêm da RFC**, mas sim da **documentação oficial da Twitch**.
+
+Para aprofundar ou entender outras capabilities disponíveis, consulte: [Dev Twitch - IRC](https://dev.twitch.tv/docs/chat/irc/)
+
+---
+
+### Fazer JOIN no canal
+
+Outro ponto que gerou dúvida durante o estudo foi o momento correto de executar o `JOIN`.
+
+No fluxo da Twitch, o `JOIN` **deve acontecer somente após**:
+
+* autenticação (`PASS` + `NICK`)
+* solicitação das capabilities (opcional, mas recomendada)
+
+O comando de entrada no canal é:
+
+```text
+JOIN #nome_do_canal
+```
+
+Observações importantes:
+
+* o nome do canal deve estar em **minúsculas**
+* sempre deve conter o prefixo `#`
+
+Após o `JOIN`, o servidor começa a enviar as mensagens do chat e eventos relacionados ao canal.
+
+Esse comportamento também é descrito na documentação oficial da Twitch: [Dev Twitch - IRC](https://dev.twitch.tv/docs/chat/irc/)
+
+---
+
+## Resumo do fluxo
+
+* Cria o socket
+* Conecta ao servidor IRC
+* Envia PASS e NICK
+* Solicita CAP REQ
+* Recebe CAP ACK do servidor
+* Executa JOIN no canal
+* Recebe e processa mensagens do chat
+
+Esse é o fluxo padrão de comunicação com o chat da Twitch via IRC.
+
+
+
