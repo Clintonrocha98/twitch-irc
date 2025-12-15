@@ -1,11 +1,13 @@
 <?php
 
-namespace App\Client;
+declare(strict_types=1);
 
-use App\Contract\IrcClientContract;
+namespace ClintonRocha\TwitchIrc\Client;
+
+use ClintonRocha\Chat\Contracts\IrcClient;
 use RuntimeException;
 
-class TwitchIrcClient implements IrcClientContract
+class TwitchIrcClient implements IrcClient
 {
     private $socket;
 
@@ -15,8 +17,7 @@ class TwitchIrcClient implements IrcClientContract
         private readonly string $token,
         private readonly string $nick,
         private readonly string $channel,
-    ) {
-    }
+    ) {}
 
     public function connect(): void
     {
@@ -24,11 +25,11 @@ class TwitchIrcClient implements IrcClientContract
             'ssl' => [
                 'verify_peer' => true,
                 'verify_peer_name' => true,
-            ]
+            ],
         ]);
 
         $this->socket = stream_socket_client(
-            "tls://{$this->server}:{$this->port}",
+            sprintf('tls://%s:%d', $this->server, $this->port),
             $errno,
             $errstr,
             30,
@@ -36,27 +37,26 @@ class TwitchIrcClient implements IrcClientContract
             $context
         );
 
-        if (!$this->socket) {
-            throw new RuntimeException($errstr, $errno);
-        }
+        throw_unless($this->socket, RuntimeException::class, $errstr, $errno);
 
-        $this->send("PASS {$this->token}");
-        $this->send("NICK {$this->nick}");
-        $this->send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
-        $this->send("JOIN #{$this->channel}");
+        $this->send('PASS '.$this->token);
+        $this->send('NICK '.$this->nick);
+        $this->send('CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership');
+        $this->send('JOIN #'.$this->channel);
     }
 
     public function listen(callable $onMessage): void
     {
-        while (!feof($this->socket)) {
-            $line = trim(fgets($this->socket));
+        while (! feof($this->socket)) {
+            $line = mb_trim(fgets($this->socket));
 
             if ($line === '') {
                 continue;
             }
 
             if (str_starts_with($line, 'PING')) {
-                $this->send("PONG :tmi.twitch.tv");
+                $this->send('PONG :tmi.twitch.tv');
+
                 continue;
             }
 
@@ -67,6 +67,11 @@ class TwitchIrcClient implements IrcClientContract
     public function disconnect(): void
     {
         fclose($this->socket);
+    }
+
+    public function sendMessage(string $channel, string $message): void
+    {
+        $this->send(sprintf('PRIVMSG %s :%s', $channel, $message));
     }
 
     private function send(string $command): void

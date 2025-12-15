@@ -1,9 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
-namespace App\Contract;
+namespace ClintonRocha\Chat\Contracts;
 
-interface IrcClientContract
+interface IrcClient
 {
     public function connect(): void;
 

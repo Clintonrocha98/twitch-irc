@@ -1,21 +1,23 @@
 <?php
 
-namespace App\Parser;
+declare(strict_types=1);
 
-class RawParser
+namespace ClintonRocha\TwitchIrc\Parser;
+
+class IrcRawParser
 {
-    public function parse(string $line): RawMessage
+    public function parse(string $line): IrcRawMessage
     {
-        $raw = new RawMessage;
+        $raw = new IrcRawMessage;
 
         if (str_starts_with($line, '@')) {
             [$tagPart, $line] = explode(' ', $line, 2);
-            $raw->rawTags = substr($tagPart, 1);
+            $raw->rawTags = mb_substr($tagPart, 1);
         }
 
         if (str_starts_with($line, ':')) {
             [$prefix, $line] = explode(' ', $line, 2);
-            $raw->prefix = substr($prefix, 1);
+            $raw->prefix = mb_substr($prefix, 1);
         }
 
         if (str_contains($line, ' :')) {
