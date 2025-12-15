@@ -40,6 +40,12 @@ Gere a key da aplicação Laravel:
 php artisan key:generate
 ```
 
+Executar migrações:
+
+```bash
+php artisan migrate
+```
+
 ---
 
 ## Configuração do ambiente
