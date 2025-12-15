@@ -1,19 +1,20 @@
 <?php
 
-namespace App\Domain;
+declare(strict_types=1);
 
-class UserInfo
+namespace ClintonRocha\Chat\Domain;
+
+class ChatUser
 {
     public function __construct(
         public string $id,
         public string $name,
         public string $displayName,
         public ?string $color
-    ) {
-    }
+    ) {}
 
     public function hasColor(): bool
     {
-        return !empty($this->color);
+        return ! in_array($this->color, [null, '', '0'], true);
     }
 }

@@ -1,26 +1,28 @@
 <?php
 
-namespace App\Transformer;
+declare(strict_types=1);
 
-use App\Domain\Message;
-use App\Domain\UserInfo;
-use App\Parser\RawMessage;
+namespace ClintonRocha\TwitchIrc\Transformer;
 
-class MessageTransformer
+use ClintonRocha\Chat\Domain\ChatMessage;
+use ClintonRocha\Chat\Domain\ChatUser;
+use ClintonRocha\TwitchIrc\Parser\IrcRawMessage;
+
+class ChatMessageTransformer
 {
-    public function transform(RawMessage $raw): Message
+    public function transform(IrcRawMessage $raw): ChatMessage
     {
         $tags = $this->parseTags($raw->rawTags ?? '');
         [$nick, $user, $host] = $this->parsePrefix($raw->prefix ?? '');
 
-        $userInfo = new UserInfo(
+        $userInfo = new ChatUser(
             id: $tags['user-id'] ?? '',
             name: $user,
             displayName: $tags['display-name'] ?? '',
             color: $tags['color'] ?? null,
         );
 
-        return new Message(
+        return new ChatMessage(
             channel: $raw->params[0] ?? '',
             command: $raw->command,
             text: $raw->text ?? '',
@@ -37,6 +39,7 @@ class MessageTransformer
             [$key, $value] = array_pad(explode('=', $pair, 2), 2, null);
             $tags[$key] = $value;
         }
+
         return $tags;
     }
 

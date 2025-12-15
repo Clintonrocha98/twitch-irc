@@ -1,18 +1,19 @@
 <?php
 
-namespace App\Domain;
+declare(strict_types=1);
 
-class Message
+namespace ClintonRocha\Chat\Domain;
+
+class ChatMessage
 {
     public function __construct(
         public string $channel,
         public string $command,
         public string $text,
-        public array $tags = [],
+        public array $tags,
         public array $params,
-        public UserInfo $user,
-    ) {
-    }
+        public ChatUser $user,
+    ) {}
 
     public static function make(
         string $channel,
@@ -20,7 +21,7 @@ class Message
         string $text,
         array $tags,
         array $params,
-        UserInfo $user,
+        ChatUser $user,
     ): self {
         return new self(
             $channel,

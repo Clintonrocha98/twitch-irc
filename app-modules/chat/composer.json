@@ -1,0 +1,22 @@
+{
+    "name": "clinton-rocha/chat",
+    "description": "",
+    "type": "library",
+    "version": "1.0",
+    "license": "proprietary",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "ClintonRocha\\Chat\\": "src/",
+            "ClintonRocha\\Chat\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ClintonRocha\\Chat\\Providers\\ChatServiceProvider"
+            ]
+        }
+    }
+}
