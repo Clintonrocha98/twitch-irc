@@ -1,6 +1,12 @@
 # IRC Twitch
 
-Este projeto é uma POC para entender o funcionamento do protocolo IRC aplicado ao chat da Twitch, com foco parsing de protocolo e organização de código (ETC / parsing em camadas).
+Este projeto é uma POC para entender o funcionamento do protocolo IRC aplicado ao chat da Twitch, com foco em parsing de protocolo, fluxo de eventos e organização de código em um **monolito modular**.
+
+O objetivo principal é estudar:
+- comunicação via IRC
+- processamento de eventos em tempo real
+- comandos de chat (ex: `!rank`)
+- organização de código escalável, porém simples
 
 ---
 
@@ -56,7 +62,8 @@ O token deve conter, no mínimo, o escopo:
 
 * `chat:read`
 
-Para gerar o token, foi utilizado o site: [twitchtokengenerator](https://twitchtokengenerator.com)
+Para gerar o token, foi utilizado o site:
+[https://twitchtokengenerator.com](https://twitchtokengenerator.com)
 
 O token gerado deve ser usado **com o prefixo `oauth:`**.
 
@@ -76,7 +83,108 @@ Esse comando irá:
 * autenticar com a Twitch
 * entrar no canal configurado
 * escutar mensagens do chat
-* processar e exibir as mensagens no terminal
+* processar eventos e comandos
+* exibir mensagens e respostas no chat
+
+---
+
+## Fluxo de eventos e comandos
+
+O projeto é orientado a **eventos**, e todo o fluxo acontece da seguinte forma:
+
+1. O client IRC recebe uma linha do socket
+2. A linha passa pelo parser e transformer
+3. Uma `ChatMessage` é criada
+4. O evento `ChatMessageReceived` é disparado
+5. Listeners reagem ao evento:
+
+    * persistem a mensagem
+    * executam comandos de chat (`!rank`, etc)
+    * calculam XP ou outras regras
+6. Caso um comando seja reconhecido, o bot responde no chat via IRC
+
+Os comandos de chat **não ficam no client** e **não ficam no listener**.
+Eles são classes isoladas, registradas dinamicamente no container.
+
+---
+
+## Monolito modular
+
+O projeto segue a ideia de **monolito modular**, ou seja:
+
+* não é microserviço
+* não é DDD
+* é uma aplicação única, porém organizada por **contextos claros**
+
+Cada módulo possui:
+
+* responsabilidades bem definidas
+* código isolado
+* seu próprio `ServiceProvider`
+
+Atualmente existem dois módulos principais:
+
+* **chat**
+  Responsável por:
+
+    * regras de chat
+    * eventos
+    * comandos (`!rank`)
+    * persistência de mensagens
+    * cálculo de XP
+
+* **twitch-irc**
+  Responsável por:
+
+    * conexão IRC
+    * autenticação
+    * parsing do protocolo
+    * envio e recebimento de mensagens
+
+---
+
+## Criando novos comandos de chat
+
+Os comandos de chat seguem uma interface comum (`ChatCommand`).
+
+Para adicionar um novo comando:
+
+1. Crie uma nova classe em:
+
+   ```text
+   app-modules/chat/src/Commands
+   ```
+
+2. Implemente a interface `ChatCommand`
+
+3. Registre o comando no `ChatServiceProvider`:
+
+```php
+$this->app->tag([
+    RankChatCommand::class,
+    // Novo comando aqui
+], ChatCommand::class, 'chat-commands');
+```
+
+Após isso, o comando passa a ser reconhecido automaticamente no chat.
+
+---
+
+## Makefile
+
+O projeto possui um `Makefile` para padronização de código:
+
+```bash
+make pint
+```
+
+Executa o Laravel Pint para formatação de código.
+
+```bash
+make rector
+```
+
+Executa o Rector para refatorações automáticas e melhorias de código.
 
 ---
 
@@ -87,110 +195,62 @@ Esse comando irá:
 No contexto do projeto, o fluxo segue o conceito de:
 
 * **Extract**: leitura da linha bruta vinda do socket IRC
-* **Transform**: conversão da mensagem bruta em uma estrutura compreensível pelo domínio
-* **Consume**: uso da mensagem já interpretada (exibir no terminal, bot, estatísticas, etc.)
+* **Transform**: conversão da mensagem bruta em uma estrutura compreensível
+* **Consume**: persistência, comandos e respostas no chat
 
 No código isso se reflete em:
 
-* `RawParser` → extrai partes do protocolo
-* `MessageTransformer` → converte para entidade de domínio
-* `Message` / `UserInfo` → entidades usadas pela aplicação
+* `IrcRawParser`
+* `ChatMessageTransformer`
+* Eventos e listeners do módulo Chat
 
 ---
 
 ### RFC do protocolo IRC
 
-O protocolo base utilizado é descrito na RFC oficial: [rfc1459](https://www.rfc-editor.org/rfc/rfc1459)
+O protocolo base utilizado é descrito na RFC oficial:
+[RFC1459](https://www.rfc-editor.org/rfc/rfc1459)
 
-A Twitch utiliza IRC como base, mas adiciona **extensões próprias** (tags, comandos e eventos adicionais).
-
----
-
-### Como estruturar o código
-
-A estrutura adotada separa claramente responsabilidades:
-
-* Client IRC → cuida da conexão e do protocolo
-* Parser → extrai dados da string
-* Transformer → aplica regras de domínio
-* Entidades → representam conceitos do chat
-* Command Laravel → apenas orquestra o uso
-
-Essa separação evita acoplamento excessivo e facilita testes e evolução.
-
----
-
-## O necessário para conectar
-
-Para se conectar ao IRC da Twitch são necessários:
-
-* URL do servidor IRC
-* Porta
-* Token OAuth
-* Nick (usuário da Twitch)
-* Canal
-
-Esses dados não ficam hardcoded no client, mas são fornecidos via configuração (`.env`).
-
----
-
-Abaixo estão **apenas os dois tópicos refatorados**, mantendo o restante do README inalterado.
+A Twitch utiliza IRC como base, mas adiciona **extensões próprias**.
 
 ---
 
 ## Solicitando capabilities da Twitch
 
-Durante o estudo do protocolo IRC aplicado à Twitch, este foi **um dos pontos que gerou dúvida**, pois não faz parte do IRC “puro” definido na RFC 1459.
-As *capabilities* são **extensões específicas da Twitch**, documentadas oficialmente pela plataforma.
+Durante o estudo do protocolo IRC aplicado à Twitch, este foi um dos pontos que gerou dúvida.
 
-Sem solicitar essas capabilities, o servidor IRC da Twitch retorna apenas mensagens básicas, sem metadados importantes.
-
-Para habilitar informações adicionais, o client deve enviar:
+As *capabilities* são extensões específicas da Twitch e devem ser solicitadas explicitamente:
 
 ```bash
 CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands
 ```
 
-Essas capabilities permitem:
+Essas capabilities habilitam:
 
-* `twitch.tv/membership`
-  Receber eventos de JOIN, PART e lista de usuários no canal.
+* eventos de JOIN / PART
+* metadados das mensagens
+* comandos específicos da Twitch
 
-* `twitch.tv/tags`
-  Receber metadados nas mensagens (badges, cor do usuário, id da mensagem, timestamp, etc.).
-
-* `twitch.tv/commands`
-  Receber comandos específicos da Twitch, como `CLEARCHAT`, `USERNOTICE`, `HOSTTARGET`.
-
-Essas informações **não vêm da RFC**, mas sim da **documentação oficial da Twitch**.
-
-Para aprofundar ou entender outras capabilities disponíveis, consulte: [Dev Twitch - IRC](https://dev.twitch.tv/docs/chat/irc/)
+Documentação oficial:
+[Twitch Doc - IRC](https://dev.twitch.tv/docs/chat/irc/)
 
 ---
 
-### Fazer JOIN no canal
+## Fazer JOIN no canal
 
-Outro ponto que gerou dúvida durante o estudo foi o momento correto de executar o `JOIN`.
-
-No fluxo da Twitch, o `JOIN` **deve acontecer somente após**:
+O `JOIN` deve ocorrer somente após:
 
 * autenticação (`PASS` + `NICK`)
-* solicitação das capabilities (opcional, mas recomendada)
-
-O comando de entrada no canal é:
+* solicitação das capabilities
 
 ```text
 JOIN #nome_do_canal
 ```
 
-Observações importantes:
+O nome do canal deve:
 
-* o nome do canal deve estar em **minúsculas**
-* sempre deve conter o prefixo `#`
-
-Após o `JOIN`, o servidor começa a enviar as mensagens do chat e eventos relacionados ao canal.
-
-Esse comportamento também é descrito na documentação oficial da Twitch: [Dev Twitch - IRC](https://dev.twitch.tv/docs/chat/irc/)
+* estar em minúsculas
+* conter o prefixo `#`
 
 ---
 
@@ -200,11 +260,9 @@ Esse comportamento também é descrito na documentação oficial da Twitch: [Dev
 * Conecta ao servidor IRC
 * Envia PASS e NICK
 * Solicita CAP REQ
-* Recebe CAP ACK do servidor
-* Executa JOIN no canal
-* Recebe e processa mensagens do chat
-
-Esse é o fluxo padrão de comunicação com o chat da Twitch via IRC.
-
-
+* Recebe CAP ACK
+* Executa JOIN
+* Processa mensagens
+* Dispara eventos
+* Executa comandos de chat
 
