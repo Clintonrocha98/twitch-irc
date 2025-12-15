@@ -1,0 +1,21 @@
+{
+    "name": "clinton-rocha/twitch-irc",
+    "description": "",
+    "type": "library",
+    "version": "1.0",
+    "license": "proprietary",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "ClintonRocha\\TwitchIrc\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ClintonRocha\\TwitchIrc\\Providers\\TwitchIrcServiceProvider"
+            ]
+        }
+    }
+}
