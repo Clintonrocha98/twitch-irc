@@ -8,7 +8,7 @@ use ClintonRocha\Chat\Enums\MessageProvider;
 use ClintonRocha\Chat\Events\ChatMessageReceived;
 use ClintonRocha\Chat\Services\MessageXpCalculator;
 use ClintonRocha\TwitchIrc\Client\TwitchIrcClient;
-use ClintonRocha\TwitchIrc\Parser\IrcMessageParser;
+use ClintonRocha\TwitchIrc\Parser\MessageParser;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Date;
 
@@ -20,7 +20,7 @@ class Irc extends Command
 
     public function handle(
         TwitchIrcClient $client,
-        IrcMessageParser $parser,
+        MessageParser $parser,
         MessageXpCalculator $xpCalculator
     ): void {
         $client->connect();
