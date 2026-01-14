@@ -16,7 +16,7 @@ class ChatServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TwitchIrcClient::class, fn () => new TwitchIrcClient(
             server: config('twitch.irc.server'),
-            port: config()->integer('twitch.irc.port'),
+            port: config('twitch.irc.port'),
             token: config('twitch.irc.token'),
             nick: config('twitch.irc.nick'),
             channel: config('twitch.irc.channel'),
