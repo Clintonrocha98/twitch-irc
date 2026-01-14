@@ -6,11 +6,11 @@ namespace ClintonRocha\TwitchIrc\Transformer;
 
 use ClintonRocha\Chat\Domain\ChatMessage;
 use ClintonRocha\Chat\Domain\ChatUser;
-use ClintonRocha\TwitchIrc\Parser\IrcRawMessage;
+use ClintonRocha\TwitchIrc\Parser\RawMessage;
 
 class ChatMessageTransformer
 {
-    public function transform(IrcRawMessage $raw): ChatMessage
+    public function transform(RawMessage $raw): ChatMessage
     {
         $tags = $this->parseTags($raw->rawTags ?? '');
         [$nick, $user, $host] = $this->parsePrefix($raw->prefix ?? '');
