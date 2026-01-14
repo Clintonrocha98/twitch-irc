@@ -13,7 +13,7 @@ class TwitchIrcClient implements IrcClient
 
     public function __construct(
         private readonly string $server,
-        private readonly int $port,
+        private readonly string $port,
         private readonly string $token,
         private readonly string $nick,
         private readonly string $channel,
@@ -59,6 +59,8 @@ class TwitchIrcClient implements IrcClient
 
                 continue;
             }
+
+            dump($line);
 
             $onMessage($line);
         }
